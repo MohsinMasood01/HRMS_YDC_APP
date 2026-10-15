@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Allows plain http traffic to the LMS backend host only. The Android
+  default since API 28 is "https-only", which blocks both the backend
+  API calls and the APK download. Limiting cleartext to this single
+  domain keeps the rest of the app's network strict.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">163.61.91.221</domain>
+    </domain-config>
+</network-security-config>
