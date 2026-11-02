@@ -314,7 +314,7 @@ class _LoginPageContentState extends State<_LoginPageContent> {
         },
         child: AnimatedBackground(
           // imagePath: 'lib/assets/images/login-bgg.jpg',
-          imagePath: 'lib/assets/images/bg.png',
+          imagePath: 'lib/assets/images/login-bgg.jpg',
           blurAmount: 3.5,
           child: SafeArea(
             child: LayoutBuilder(
@@ -368,7 +368,7 @@ class _LoginPageContentState extends State<_LoginPageContent> {
             delay: const Duration(milliseconds: 100),
             slideDirection: SlideDirection.fromTop,
             child: AnimatedLogo(
-              imagePath: 'lib/assets/images/YDC-HD.png',
+              imagePath: 'lib/assets/images/YDC-HD2.png',
               size: keyboardVisible ? logoSize * 0.6 : logoSize,
               duration: const Duration(milliseconds: 1000),
             ),

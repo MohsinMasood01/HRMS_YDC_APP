@@ -281,7 +281,7 @@ class _AppLockPageState extends State<AppLockPage>
       child: Padding(
         padding: EdgeInsets.all(20.w),
         child: Image.asset(
-          'lib/assets/images/YDC-HD.png',
+          'lib/assets/images/YDC-HD2.png',
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => Icon(
             Icons.lock_rounded,

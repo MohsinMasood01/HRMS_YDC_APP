@@ -51,7 +51,7 @@ class DashboardPage extends StatelessWidget {
           }
           return AnimatedBackground(
             // imagePath: 'lib/assets/images/login-bgg.jpg',
-            imagePath: 'lib/assets/images/bg.png',
+            imagePath: 'lib/assets/images/login-bgg.jpg',
             blurAmount: 3.5,
             child: RefreshIndicator(
               onRefresh: () async =>

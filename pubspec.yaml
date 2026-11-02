@@ -39,7 +39,7 @@ dependencies:
   camera: ^0.11.0+1
   image: ^4.3.0
   cached_network_image: ^3.3.1
-  workmanager: ^0.5.2
+  workmanager: 0.10.10
   sqflite: ^2.3.3
   connectivity_plus: ^6.0.5
   flutter_local_notifications: ^17.2.1+2
@@ -91,4 +91,4 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "lib/assets/images/LMS.png"
+  image_path: "lib/assets/images/YDC-HD2.png"

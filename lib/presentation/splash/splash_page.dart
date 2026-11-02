@@ -209,7 +209,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   Widget _buildBackground() {
     return Image.asset(
       // 'lib/assets/images/login-bgg.jpg',
-      'lib/assets/images/bg.png',
+      'lib/assets/images/login-bgg.jpg',
       fit: BoxFit.cover,
       filterQuality: FilterQuality.high,
       errorBuilder: (context, error, stackTrace) {
@@ -358,7 +358,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           ),
           padding: EdgeInsets.all(12.w),
           child: Image.asset(
-            'lib/assets/images/YDC-HD.png',
+            'lib/assets/images/YDC-HD2.png',
             fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
             errorBuilder: (context, error, stackTrace) {
