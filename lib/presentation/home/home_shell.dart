@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/location_tracking_service.dart';
+import '../../core/widgets/responsive.dart';
 import '../../di/service_locator.dart';
 import '../../features/attendance/presentation/pages/attendance_page.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
@@ -14,7 +15,11 @@ import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({super.key, @visibleForTesting this.pages});
+
+  /// Replaces the five tab pages; lets layout tests pump the shell without
+  /// the backend-bound pages and their dependencies.
+  final List<Widget>? pages;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -23,7 +28,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
 
-  final _pages = const [
+  static const _defaultPages = [
     DashboardPage(),
     AttendancePage(),
     LeavePage(),
@@ -98,6 +103,16 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    // Every tab is centred at a readable width on large screens, except the
+    // dashboard, which lays its cards out as a grid across the full width.
+    final tabs = widget.pages ?? _defaultPages;
+    final pages = IndexedStack(
+      index: _currentIndex,
+      children: [
+        for (var i = 0; i < tabs.length; i++)
+          i == 0 ? tabs[i] : ResponsiveBody(child: tabs[i]),
+      ],
+    );
 
     return Scaffold(
       backgroundColor: isDark
@@ -172,66 +187,116 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-              blurRadius: 20.r,
-              offset: Offset(0, -5.r),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+      // Tablets / Chromebooks: side rail beside centred content.
+      // Phones: bottom bar, as before.
+      body: context.isExpanded
+          ? Row(
               children: [
-                _buildNavItem(
-                  context,
-                  index: 0,
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                ),
-                _buildNavItem(
-                  context,
-                  index: 1,
-                  icon: Icons.access_time_outlined,
-                  activeIcon: Icons.access_time_filled,
-                  label: 'Attendance',
-                ),
-                _buildNavItem(
-                  context,
-                  index: 2,
-                  icon: Icons.beach_access_outlined,
-                  activeIcon: Icons.beach_access,
-                  label: 'Leave',
-                ),
-                _buildNavItem(
-                  context,
-                  index: 3,
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
-                  label: 'Profile',
-                ),
-                _buildNavItem(
-                  context,
-                  index: 4,
-                  icon: Icons.settings_outlined,
-                  activeIcon: Icons.settings_rounded,
-                  label: 'Settings',
-                ),
+                _buildSideRail(context),
+                Expanded(child: pages),
               ],
+            )
+          : pages,
+      bottomNavigationBar: context.isExpanded
+          ? null
+          : Container(
+              key: const Key('home-bottom-bar'),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                    blurRadius: 20.r,
+                    offset: Offset(0, -5.r),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: _buildNavItems(context),
+                  ),
+                ),
+              ),
             ),
+    );
+  }
+
+  /// Vertical navigation for wide screens, mirroring the bottom bar.
+  Widget _buildSideRail(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      key: const Key('home-side-rail'),
+      width: 104,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+            blurRadius: 20.r,
+            offset: Offset(5.r, 0),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        right: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16.h),
+          child: Column(
+            children: [
+              for (final item in _buildNavItems(context))
+                Padding(
+                  padding: EdgeInsets.only(bottom: 12.h),
+                  // Shrinks a label that is wider than the rail (e.g. the
+                  // selected "Dashboard") instead of wrapping it.
+                  child: FittedBox(fit: BoxFit.scaleDown, child: item),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  List<Widget> _buildNavItems(BuildContext context) => [
+        _buildNavItem(
+          context,
+          index: 0,
+          icon: Icons.dashboard_outlined,
+          activeIcon: Icons.dashboard_rounded,
+          label: 'Dashboard',
+        ),
+        _buildNavItem(
+          context,
+          index: 1,
+          icon: Icons.access_time_outlined,
+          activeIcon: Icons.access_time_filled,
+          label: 'Attendance',
+        ),
+        _buildNavItem(
+          context,
+          index: 2,
+          icon: Icons.beach_access_outlined,
+          activeIcon: Icons.beach_access,
+          label: 'Leave',
+        ),
+        _buildNavItem(
+          context,
+          index: 3,
+          icon: Icons.person_outline_rounded,
+          activeIcon: Icons.person_rounded,
+          label: 'Profile',
+        ),
+        _buildNavItem(
+          context,
+          index: 4,
+          icon: Icons.settings_outlined,
+          activeIcon: Icons.settings_rounded,
+          label: 'Settings',
+        ),
+      ];
 
   Widget _buildNavItem(
     BuildContext context, {

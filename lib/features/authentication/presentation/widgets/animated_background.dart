@@ -100,15 +100,19 @@ class AnimatedBackground extends StatelessWidget {
             ),
           ),
 
-        // Blur effect on background
+        // Blur effect on background. Clipped to this widget: an unclipped
+        // BackdropFilter blurs everything painted before it on screen, e.g.
+        // the side navigation rail on tablets.
         if (imagePath != null && blurAmount > 0)
-          BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: blurAmount,
-              sigmaY: blurAmount,
-            ),
-            child: Container(
-              color: Colors.transparent,
+          ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: blurAmount,
+                sigmaY: blurAmount,
+              ),
+              child: Container(
+                color: Colors.transparent,
+              ),
             ),
           ),
 

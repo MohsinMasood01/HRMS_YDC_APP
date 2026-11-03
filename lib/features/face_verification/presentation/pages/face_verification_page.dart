@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../di/service_locator.dart';
 import '../bloc/face_verification_bloc.dart';
 import '../widgets/camera_preview_widget.dart';
+import '../../../../core/widgets/responsive.dart';
 
 /// Face verification page
 ///
@@ -24,7 +25,7 @@ class FaceVerificationPage extends StatelessWidget {
         ..add(const StartFaceVerification()),
       child: Scaffold(
         appBar: AppBar(title: const Text('Face Verification'), elevation: 0),
-        body: BlocConsumer<FaceVerificationBloc, FaceVerificationState>(
+        body: ResponsiveBody(child: BlocConsumer<FaceVerificationBloc, FaceVerificationState>(
           listener: (context, state) {
             if (state.status == FaceVerificationStatus.verificationSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -178,7 +179,7 @@ class FaceVerificationPage extends StatelessWidget {
               ],
             );
           },
-        ),
+        )),
       ),
     );
   }

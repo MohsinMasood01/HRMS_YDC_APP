@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/responsive.dart';
 import '../../../../di/service_locator.dart';
 import '../../domain/entities/payslip_summary.dart';
 import '../../domain/payslip_exception.dart';
@@ -157,11 +158,15 @@ class _PayslipDetailViewState extends State<_PayslipDetailView> {
               ),
             ],
           ),
-          body: Column(
-            children: [
-              _SummaryCard(item: widget.item),
-              Expanded(child: _buildBody(context, state)),
-            ],
+          // PDF pages are portrait: centre them at a readable width instead
+          // of scaling one page across a landscape tablet.
+          body: ResponsiveBody(
+            child: Column(
+              children: [
+                _SummaryCard(item: widget.item),
+                Expanded(child: _buildBody(context, state)),
+              ],
+            ),
           ),
         );
       },

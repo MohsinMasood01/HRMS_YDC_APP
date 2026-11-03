@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lms/core/errors/error_messages.dart';
@@ -99,6 +102,58 @@ void main() {
         ),
         fallback,
       );
+    });
+
+    test('face server unreachable shows the offline message, not the dump',
+        () {
+      // Seen in the field when face.<host> could not be resolved.
+      final message = ErrorMessages.from(
+        Exception(
+          "Failed to identify face: The connection errored: Failed host "
+          "lookup: 'face.sysnovix.com' This indicates an error which most "
+          'likely cannot be solved by the library.',
+        ),
+      );
+      expect(message, ErrorMessages.offline);
+    });
+
+    test('raw socket and timeout exceptions are worded for the user', () {
+      expect(
+        ErrorMessages.from(const SocketException('Failed host lookup')),
+        ErrorMessages.offline,
+      );
+      expect(
+        ErrorMessages.from(TimeoutException('no fix')),
+        ErrorMessages.timeout,
+      );
+    });
+
+    test('isNetworkError separates "unreachable" from server answers', () {
+      DioException dio(DioExceptionType type, {Object? error}) =>
+          DioException(requestOptions: options, type: type, error: error);
+
+      expect(
+        ErrorMessages.isNetworkError(dio(DioExceptionType.connectionError)),
+        isTrue,
+      );
+      expect(
+        ErrorMessages.isNetworkError(dio(DioExceptionType.receiveTimeout)),
+        isTrue,
+      );
+      expect(
+        ErrorMessages.isNetworkError(
+          dio(
+            DioExceptionType.unknown,
+            error: const SocketException('Network is unreachable'),
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        ErrorMessages.isNetworkError(dio(DioExceptionType.badResponse)),
+        isFalse,
+      );
+      expect(ErrorMessages.isNetworkError(Exception('bad input')), isFalse);
     });
   });
 }

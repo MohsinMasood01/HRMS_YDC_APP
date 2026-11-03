@@ -53,7 +53,7 @@ class ProfileRepositoryImpl implements EnhancedProfileRepository {
       final withSchedule = profile.workSchedule != null
           ? profile
           : profile.copyWith(workSchedule: WorkSchedule.defaultSchedule);
-      return _withSavedEmergencyContact(withSchedule);
+      return await _withSavedEmergencyContact(withSchedule);
     } catch (e) {
       // If profile API fails, try to get basic info from dashboard cache
       // This is only a fallback for display purposes
@@ -82,41 +82,6 @@ class ProfileRepositoryImpl implements EnhancedProfileRepository {
         cardNumber: '-',
         workSchedule: WorkSchedule.defaultSchedule,
       );
-    }
-  }
-
-  DateTime _parseDate(String dateString) {
-    try {
-      return DateTime.parse(dateString);
-    } catch (e) {
-      // Try alternative formats
-      try {
-        // Handle "27-oct-2025" format
-        final parts = dateString.split('-');
-        if (parts.length == 3) {
-          final months = {
-            'jan': 1,
-            'feb': 2,
-            'mar': 3,
-            'apr': 4,
-            'may': 5,
-            'jun': 6,
-            'jul': 7,
-            'aug': 8,
-            'sep': 9,
-            'oct': 10,
-            'nov': 11,
-            'dec': 12,
-          };
-          final month = months[parts[1].toLowerCase()] ?? 1;
-          final day = int.tryParse(parts[0]) ?? 1;
-          final year = int.tryParse(parts[2]) ?? DateTime.now().year;
-          return DateTime(year, month, day);
-        }
-      } catch (e2) {
-        // Ignore
-      }
-      return DateTime.now();
     }
   }
 

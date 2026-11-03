@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ignore_for_file: todo
 
@@ -18,6 +19,13 @@ import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/login_text_field.dart';
 import '../widgets/slide_fade_animation.dart';
+
+/// Also declared in Play Console; Google requires it reachable in-app.
+const _kPrivacyPolicyUrl = 'https://www.dewancement.com/gppolicy.html';
+
+/// Terms of Service page. Null hides the footer link (and its separator dot)
+/// -- set the URL once the page exists on the backend.
+const String? _kTermsOfServiceUrl = null;
 
 /// A beautiful, modern login page with glassmorphism design
 ///
@@ -314,7 +322,7 @@ class _LoginPageContentState extends State<_LoginPageContent> {
         },
         child: AnimatedBackground(
           // imagePath: 'lib/assets/images/login-bgg.jpg',
-          imagePath: 'lib/assets/images/login-bgg.jpg',
+          imagePath: 'lib/assets/images/bg.png',
           blurAmount: 3.5,
           child: SafeArea(
             child: LayoutBuilder(
@@ -395,8 +403,10 @@ class _LoginPageContentState extends State<_LoginPageContent> {
           ),
         ),
 
-        // Footer - hide when keyboard is visible or small screen
-        if (!keyboardVisible && !isSmallScreen) ...[
+        // Footer - hide when keyboard is visible, or on a short phone screen.
+        // Always shown on tablets (landscape tablets are often under 700 px
+        // tall) so the Privacy Policy link stays reachable.
+        if (!keyboardVisible && (isTablet || !isSmallScreen)) ...[
           SizedBox(height: 16.h),
           SlideFadeAnimation(
             delay: const Duration(milliseconds: 600),
@@ -883,29 +893,33 @@ class _LoginPageContentState extends State<_LoginPageContent> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildFooterLink(context, 'Privacy Policy'),
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 10.w),
-              width: 4.w,
-              height: 4.h,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white24 : Colors.white54,
-                shape: BoxShape.circle,
+            _buildFooterLink(context, 'Privacy Policy', url: _kPrivacyPolicyUrl),
+            if (_kTermsOfServiceUrl != null) ...[
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 10.w),
+                width: 4.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.white54,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-            _buildFooterLink(context, 'Terms of Service'),
+              _buildFooterLink(context, 'Terms of Service',
+                  url: _kTermsOfServiceUrl!),
+            ],
           ],
         ),
       ],
     );
   }
 
-  Widget _buildFooterLink(BuildContext context, String text) {
+  Widget _buildFooterLink(BuildContext context, String text,
+      {required String url}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to respective pages
+        launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       },
       child: Text(
         text,

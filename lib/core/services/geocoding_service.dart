@@ -15,7 +15,13 @@ import 'location_service.dart';
 /// 
 /// Uses OpenStreetMap's Nominatim API (free, no API key required)
 class GeocodingService {
-  GeocodingService(this._locationService) : _dio = Dio();
+  GeocodingService(this._locationService)
+      : _dio = Dio(BaseOptions(
+          // Without a network these lookups must fail fast instead of keeping
+          // the attendance screen on "Fetching location..." indefinitely.
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ));
 
   final LocationService _locationService;
   final Dio _dio;
@@ -25,21 +31,34 @@ class GeocodingService {
 
   /// Get complete location info including address and nearby landmarks
   Future<LocationInfo> getLocationInfo() async {
-    // Get current position
-    final position = await _locationService.currentPosition();
-    
-    // Create base location info
-    var locationInfo = LocationInfo.coordinates(
+    return withAddress(await currentCoordinates());
+  }
+
+  /// Current GPS fix only (coordinates + accuracy) -- no network needed.
+  ///
+  /// [timeout] bounds the wait for a fix so callers never hang on it.
+  Future<LocationInfo> currentCoordinates({
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final position =
+        await _locationService.currentPositionWithTimeout(timeout: timeout);
+    return LocationInfo.coordinates(
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
     );
+  }
+
+  /// [coordinates] plus address and nearby landmarks, where the network
+  /// allows. Lookups that fail leave those fields empty.
+  Future<LocationInfo> withAddress(LocationInfo coordinates) async {
+    var locationInfo = coordinates;
 
     // Get address details via reverse geocoding
     try {
       final addressDetails = await reverseGeocode(
-        position.latitude, 
-        position.longitude,
+        coordinates.latitude,
+        coordinates.longitude,
       );
       
       locationInfo = locationInfo.copyWith(
@@ -61,8 +80,8 @@ class GeocodingService {
     // Get nearby landmarks
     try {
       final landmarks = await getNearbyLandmarks(
-        position.latitude,
-        position.longitude,
+        coordinates.latitude,
+        coordinates.longitude,
       );
       
       if (landmarks.isNotEmpty) {

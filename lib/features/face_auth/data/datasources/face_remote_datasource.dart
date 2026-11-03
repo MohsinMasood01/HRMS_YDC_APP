@@ -6,6 +6,7 @@ import '../models/face_identify_response_model.dart';
 import '../models/face_register_response_model.dart';
 import '../models/face_status_response_model.dart';
 import '../models/face_verify_response_model.dart';
+import '../../../../core/errors/error_messages.dart';
 
 /// Remote data source for face authentication API
 abstract class FaceRemoteDataSource {
@@ -82,6 +83,12 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
 
       return FaceRegisterResponseModel.fromJson(response.data ?? {});
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint('FaceRemoteDataSource: Registration error: ${e.message}');
       debugPrint(
         'FaceRemoteDataSource: Status code: ${e.response?.statusCode}',
@@ -99,7 +106,7 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
       throw Exception(
         e.response?.data?['body']?['msg'] as String? ??
             e.response?.data?['msg'] as String? ??
-            'Failed to register face: ${e.message}',
+            ErrorMessages.from(e, fallback: 'Could not register face. Please try again.'),
       );
     } catch (e) {
       debugPrint('FaceRemoteDataSource: Unexpected error: $e');
@@ -134,6 +141,12 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
 
       return FaceVerifyResponseModel.fromJson(response.data ?? {});
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint('FaceRemoteDataSource: Verification error: ${e.message}');
       debugPrint(
         'FaceRemoteDataSource: Status code: ${e.response?.statusCode}',
@@ -150,7 +163,7 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
       throw Exception(
         e.response?.data?['body']?['msg'] as String? ??
             e.response?.data?['msg'] as String? ??
-            'Failed to verify face: ${e.message}',
+            ErrorMessages.from(e, fallback: 'Could not verify face. Please try again.'),
       );
     } catch (e) {
       debugPrint('FaceRemoteDataSource: Unexpected error: $e');
@@ -173,6 +186,12 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
 
       return FaceStatusResponseModel.fromJson(response.data ?? {});
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint('FaceRemoteDataSource: Status check error: ${e.message}');
       debugPrint(
         'FaceRemoteDataSource: Status code: ${e.response?.statusCode}',
@@ -224,6 +243,12 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
 
       return FaceIdentifyResponseModel.fromJson(response.data ?? {});
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint('FaceRemoteDataSource: Identify error: ${e.message}');
 
       if (e.response?.data != null) {
@@ -235,7 +260,7 @@ class FaceRemoteDataSourceImpl implements FaceRemoteDataSource {
       throw Exception(
         e.response?.data?['body']?['message'] as String? ??
             e.response?.data?['message'] as String? ??
-            'Failed to identify face: ${e.message}',
+            ErrorMessages.from(e, fallback: 'Could not identify face. Please try again.'),
       );
     } catch (e) {
       debugPrint('FaceRemoteDataSource: Unexpected error: $e');

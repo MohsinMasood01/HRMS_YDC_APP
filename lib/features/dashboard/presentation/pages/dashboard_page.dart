@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/designation_formatter.dart';
+import '../../../../core/widgets/responsive.dart';
 import '../../../../di/service_locator.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../authentication/presentation/widgets/animated_background.dart';
@@ -51,40 +52,112 @@ class DashboardPage extends StatelessWidget {
           }
           return AnimatedBackground(
             // imagePath: 'lib/assets/images/login-bgg.jpg',
-            imagePath: 'lib/assets/images/login-bgg.jpg',
+            imagePath: 'lib/assets/images/bg.png',
             blurAmount: 3.5,
             child: RefreshIndicator(
               onRefresh: () async =>
                   context.read<DashboardBloc>().add(const DashboardRequested()),
-              child: ListView(
-                padding: EdgeInsets.all(16.w),
-                children: [
-                  _WelcomeCard(summary: state.summary!),
-                  SizedBox(height: 20.h),
-                  _QuickStatsRow(summary: state.summary!),
-                  SizedBox(height: 20.h),
-                  const _PayslipsTile(),
-                  SizedBox(height: 20.h),
-                  _SectionHeader(
-                    title: 'Leave Balances',
-                    icon: Icons.calendar_today_rounded,
-                  ),
-                  SizedBox(height: 12.h),
-                  _LeaveBalanceGrid(summary: state.summary!),
-                  SizedBox(height: 20.h),
-                  _SectionHeader(
-                    title: 'Leave Distribution',
-                    icon: Icons.pie_chart_rounded,
-                  ),
-                  SizedBox(height: 12.h),
-                  _LeavePieChart(summary: state.summary!),
-                  SizedBox(height: 20.h),
-                ],
-              ),
+              child: _DashboardBody(summary: state.summary!),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+/// Phones: one column, top to bottom. Tablets / Chromebooks: the welcome
+/// card spans the width and the sections below are laid out as a grid of
+/// cards (2 columns on medium windows, 3 on expanded) instead of one column
+/// stretched across the screen.
+class _DashboardBody extends StatelessWidget {
+  const _DashboardBody({required this.summary});
+
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final columns = context.gridColumns(compact: 1, medium: 2, expanded: 3);
+    final sections = <Widget>[
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _QuickStatsRow(summary: summary),
+          SizedBox(height: 20.h),
+          const _PayslipsTile(),
+        ],
+      ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionHeader(
+            title: 'Leave Balances',
+            icon: Icons.calendar_today_rounded,
+          ),
+          SizedBox(height: 12.h),
+          _LeaveBalanceGrid(summary: summary),
+        ],
+      ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionHeader(
+            title: 'Leave Distribution',
+            icon: Icons.pie_chart_rounded,
+          ),
+          SizedBox(height: 12.h),
+          _LeavePieChart(summary: summary),
+        ],
+      ),
+    ];
+
+    if (columns == 1) {
+      return ListView(
+        padding: EdgeInsets.all(16.w),
+        children: [
+          _WelcomeCard(summary: summary),
+          for (final section in sections) ...[
+            SizedBox(height: 20.h),
+            section,
+          ],
+          SizedBox(height: 20.h),
+        ],
+      );
+    }
+
+    // Cards have different heights, so fill columns rather than rows.
+    final gridColumns = List.generate(
+      columns,
+      (c) => [
+        for (var i = c; i < sections.length; i += columns) sections[i],
+      ],
+    );
+    return ListView(
+      padding: EdgeInsets.all(16.w),
+      children: [
+        _WelcomeCard(summary: summary),
+        SizedBox(height: 20.h),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var c = 0; c < columns; c++) ...[
+              if (c > 0) SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < gridColumns[c].length; i++) ...[
+                      if (i > 0) SizedBox(height: 20.h),
+                      gridColumns[c][i],
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        SizedBox(height: 20.h),
+      ],
     );
   }
 }
@@ -97,18 +170,17 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
+    // Sits directly on the dashboard's dark background image in both light
+    // and dark mode, so it is always light.
     return Row(
       children: [
         Container(
           padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
-            color: theme.primaryColor.withValues(alpha: 0.1),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10.r),
           ),
-          child: Icon(icon, size: 18.sp, color: theme.primaryColor),
+          child: Icon(icon, size: 18.sp, color: Colors.white),
         ),
         SizedBox(width: 12.w),
         Text(
@@ -116,7 +188,7 @@ class _SectionHeader extends StatelessWidget {
           style: TextStyle(
             fontSize: 17.sp,
             fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : AppColors.textPrimary,
+            color: Colors.white,
           ),
         ),
       ],
@@ -609,7 +681,9 @@ class _LeaveBalanceGrid extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 12.h,
         crossAxisSpacing: 12.w,
-        childAspectRatio: 1.8, // Adjusted for better fit
+        // Phones: 1.8. Wider screens put this grid in a narrower dashboard
+        // column while .w paddings scale up, so the cards need more height.
+        childAspectRatio: context.isMediumUp ? 1.5 : 1.8,
       ),
       itemCount: summary.balances.length,
       itemBuilder: (context, index) {

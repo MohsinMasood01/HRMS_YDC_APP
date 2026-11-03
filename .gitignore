@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Screen recordings (e.g. Play demo videos) -- keep out of git
+*.mp4

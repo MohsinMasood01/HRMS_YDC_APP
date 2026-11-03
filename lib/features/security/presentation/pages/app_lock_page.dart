@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/services/biometric_service.dart';
 import '../../../../di/service_locator.dart';
+import '../../../../core/widgets/responsive.dart';
 
 /// App Lock Screen for biometric/PIN authentication
 /// 
@@ -176,7 +177,7 @@ class _AppLockPageState extends State<AppLockPage>
                 : [theme.primaryColor, theme.primaryColor.withValues(alpha: 0.7)],
           ),
         ),
-        child: SafeArea(
+        child: ResponsiveBody(child: SafeArea(
           child: Column(
             children: [
               const Spacer(flex: 2),
@@ -258,7 +259,7 @@ class _AppLockPageState extends State<AppLockPage>
               SizedBox(height: 32.h),
             ],
           ),
-        ),
+        )),
       ),
     );
   }

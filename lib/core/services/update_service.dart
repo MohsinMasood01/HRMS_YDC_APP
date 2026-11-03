@@ -1,16 +1,40 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../network/dio_client.dart';
+import 'apk_updater.dart';
 import 'app_version_service.dart';
 
 /// Platform identifier the server expects in `?platform=`.
-const String _kPlatform = 'android';
+String get _platform => Platform.isIOS ? 'ios' : 'android';
 
-/// Hardcoded Play Store URL — used as a fallback when the server-provided
-/// `update_url` is null or empty. Edit if the Play Store listing moves.
-const String kFallbackUpdateUrl =
-    'https://play.google.com/store/apps/details?id=com.example.lms';
+/// Play Store listing for this app.
+const String kPlayStoreUrl =
+    'https://play.google.com/store/apps/details?id=com.yousufdewan.hrms';
+
+/// PLACEHOLDER: the App Store app does not exist yet. Replace the id with the
+/// real one (`https://apps.apple.com/app/id<NUMBER>`) once it is published.
+const String kAppStoreUrl = 'https://apps.apple.com/app/id0000000000';
+
+/// Store listing for the running platform -- used whenever the server's
+/// `update_url` is missing or is not a store listing (store builds must never
+/// download and install an APK themselves).
+String get kFallbackUpdateUrl => Platform.isIOS ? kAppStoreUrl : kPlayStoreUrl;
+
+/// [url] when it is a store listing, otherwise [kFallbackUpdateUrl].
+String storeUpdateUrl(String? url) {
+  final trimmed = url?.trim() ?? '';
+  if (trimmed.isNotEmpty && ApkUpdater.isStoreUrl(trimmed)) return trimmed;
+  if (trimmed.isNotEmpty) {
+    debugPrint(
+      '[UpdateService] update_url is not a store listing ($trimmed); '
+      'using $kFallbackUpdateUrl',
+    );
+  }
+  return kFallbackUpdateUrl;
+}
 
 /// What the server tells us about the installed version.
 enum UpdateStatus { ok, soft, force }
@@ -47,7 +71,7 @@ class UpdateCheckResult {
       UpdateCheckResult(
         status: UpdateStatus.force,
         message: message,
-        updateUrl: updateUrl.isEmpty ? kFallbackUpdateUrl : updateUrl,
+        updateUrl: storeUpdateUrl(updateUrl),
       );
 }
 
@@ -70,7 +94,7 @@ class UpdateService {
       final response = await _dio.get<Map<String, dynamic>>(
         '/app/version-check',
         queryParameters: {
-          'platform': _kPlatform,
+          'platform': _platform,
           'version': version,
           'build': build,
         },
@@ -93,11 +117,10 @@ class UpdateService {
         ? UpdateStatus.force
         : (soft ? UpdateStatus.soft : UpdateStatus.ok);
 
-    final rawUrl = (data['update_url'] as String?)?.trim() ?? '';
     return UpdateCheckResult(
       status: status,
       message: (data['message'] as String?) ?? '',
-      updateUrl: rawUrl.isEmpty ? kFallbackUpdateUrl : rawUrl,
+      updateUrl: storeUpdateUrl(data['update_url'] as String?),
       latestVersion: data['latest_version'] as String?,
     );
   }

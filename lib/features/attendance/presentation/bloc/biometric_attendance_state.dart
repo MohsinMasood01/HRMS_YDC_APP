@@ -42,6 +42,7 @@ class BiometricAttendanceState extends Equatable {
     this.availableBiometrics = const [],
     this.locationInfo,
     this.isLoadingLocation = false,
+    this.isResolvingAddress = false,
     this.locationError,
     this.isLocationServiceEnabled = true,
     this.attendanceType = 'check_in',
@@ -80,6 +81,10 @@ class BiometricAttendanceState extends Equatable {
 
   /// Whether location is being loaded
   final bool isLoadingLocation;
+
+  /// True while the address for an already-known GPS fix is being looked up
+  /// (needs the network; the coordinates are shown meanwhile).
+  final bool isResolvingAddress;
 
   /// Location error message if any
   final String? locationError;
@@ -204,7 +209,9 @@ class BiometricAttendanceState extends Equatable {
     List<BiometricType>? availableBiometrics,
     LocationInfo? locationInfo,
     bool? isLoadingLocation,
+    bool? isResolvingAddress,
     String? locationError,
+    bool clearLocationError = false,
     bool? isLocationServiceEnabled,
     String? attendanceType,
     String? errorMessage,
@@ -234,7 +241,9 @@ class BiometricAttendanceState extends Equatable {
       availableBiometrics: availableBiometrics ?? this.availableBiometrics,
       locationInfo: locationInfo ?? this.locationInfo,
       isLoadingLocation: isLoadingLocation ?? this.isLoadingLocation,
-      locationError: locationError ?? this.locationError,
+      isResolvingAddress: isResolvingAddress ?? this.isResolvingAddress,
+      locationError:
+          clearLocationError ? null : locationError ?? this.locationError,
       isLocationServiceEnabled:
           isLocationServiceEnabled ?? this.isLocationServiceEnabled,
       attendanceType: attendanceType ?? this.attendanceType,
@@ -270,6 +279,7 @@ class BiometricAttendanceState extends Equatable {
     availableBiometrics,
     locationInfo,
     isLoadingLocation,
+    isResolvingAddress,
     locationError,
     isLocationServiceEnabled,
     attendanceType,

@@ -1,3 +1,6 @@
+import 'dart:async' show TimeoutException;
+import 'dart:io' show SocketException;
+
 import 'package:dio/dio.dart';
 
 import 'app_exception.dart';
@@ -28,9 +31,32 @@ class ErrorMessages {
   /// sentence.
   static String from(Object? error, {String fallback = generic}) {
     if (error == null) return fallback;
+    if (error is SocketException) return offline;
+    if (error is TimeoutException) return timeout;
     if (error is DioException) return _fromDio(error, fallback);
     if (error is AppException) return _clean(error.message, fallback);
     return _clean(error.toString(), fallback);
+  }
+
+  /// True when [error] means the server could not be reached at all (no
+  /// network, DNS failure, timeout) rather than an answer from the server.
+  /// Data sources rethrow these untouched so [from] can word them for the
+  /// user instead of folding raw socket text into their own messages.
+  static bool isNetworkError(Object error) {
+    if (error is SocketException || error is TimeoutException) return true;
+    if (error is! DioException) return false;
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+        return true;
+      case DioExceptionType.unknown:
+        return error.error is SocketException ||
+            _looksOffline(error.error?.toString() ?? error.message ?? '');
+      default:
+        return false;
+    }
   }
 
   static String _fromDio(DioException error, String fallback) {
@@ -125,6 +151,10 @@ class ErrorMessages {
 
     if (text.isEmpty) return fallback;
     if (_looksOffline(text)) return offline;
+    if (text.contains('TimeoutException') ||
+        text.toLowerCase().contains('timed out')) {
+      return timeout;
+    }
 
     // Anything that still reads like a developer message is not shown.
     const devMarkers = [
@@ -151,6 +181,7 @@ class ErrorMessages {
     final t = text.toLowerCase();
     return t.contains('socketexception') ||
         t.contains('failed host lookup') ||
+        t.contains('connection errored') ||
         t.contains('network is unreachable') ||
         t.contains('connection refused') ||
         t.contains('connection closed') ||

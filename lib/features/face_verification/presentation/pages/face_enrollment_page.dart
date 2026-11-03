@@ -7,6 +7,7 @@ import '../../../../core/services/secure_storage_service.dart';
 import '../../../../di/service_locator.dart';
 import '../bloc/face_verification_bloc.dart';
 import '../widgets/camera_preview_widget.dart';
+import '../../../../core/widgets/responsive.dart';
 
 /// Face enrollment page
 ///
@@ -83,7 +84,7 @@ class _FaceEnrollmentPageState extends State<FaceEnrollmentPage> {
               : 'Face Enrollment'),
           elevation: 0,
         ),
-        body: BlocConsumer<FaceVerificationBloc, FaceVerificationState>(
+        body: ResponsiveBody(child: BlocConsumer<FaceVerificationBloc, FaceVerificationState>(
           listenWhen: (previous, current) {
             // Only listen to status changes and error messages
             return previous.status != current.status ||
@@ -415,7 +416,7 @@ class _FaceEnrollmentPageState extends State<FaceEnrollmentPage> {
               ],
             );
           },
-        ),
+        )),
       ),
     );
   }

@@ -19,6 +19,7 @@ import '../../data/datasources/face_embedding_datasource.dart';
 import '../../data/datasources/face_image_storage_datasource.dart';
 import '../../../../core/services/secure_storage_service.dart';
 import '../../../../di/service_locator.dart';
+import '../../../../core/errors/error_messages.dart';
 
 part 'face_verification_event.dart';
 part 'face_verification_state.dart';
@@ -112,7 +113,7 @@ class FaceVerificationBloc
       emit(
         state.copyWith(
           status: FaceVerificationStatus.error,
-          errorMessage: 'Failed to initialize: ${e.toString()}',
+          errorMessage: ErrorMessages.from(e, fallback: 'Failed to initialize. Please try again.'),
         ),
       );
     }
@@ -175,7 +176,7 @@ class FaceVerificationBloc
       emit(
         state.copyWith(
           status: FaceVerificationStatus.error,
-          errorMessage: 'Failed to start enrollment: ${e.toString()}',
+          errorMessage: ErrorMessages.from(e, fallback: 'Failed to start enrollment. Please try again.'),
         ),
       );
     }
@@ -371,7 +372,7 @@ class FaceVerificationBloc
         emit(
           state.copyWith(
             status: FaceVerificationStatus.error,
-            errorMessage: 'Registration failed: ${e.toString()}',
+            errorMessage: ErrorMessages.from(e, fallback: 'Registration failed. Please try again.'),
             instructionText: null,
           ),
         );
@@ -384,7 +385,7 @@ class FaceVerificationBloc
       emit(
         state.copyWith(
           status: FaceVerificationStatus.error,
-          errorMessage: 'Burst capture failed: ${e.toString()}',
+          errorMessage: ErrorMessages.from(e, fallback: 'Burst capture failed. Please try again.'),
           instructionText: null,
         ),
       );
@@ -434,7 +435,7 @@ class FaceVerificationBloc
         validatedImages.add(
           imageInfo.copyWith(
             isValid: false,
-            validationError: 'Error: ${e.toString()}',
+            validationError: ErrorMessages.from(e, fallback: 'Could not read this image.'),
           ),
         );
       }
@@ -582,7 +583,7 @@ class FaceVerificationBloc
       emit(
         state.copyWith(
           status: FaceVerificationStatus.error,
-          errorMessage: 'Failed to complete enrollment: ${e.toString()}',
+          errorMessage: ErrorMessages.from(e, fallback: 'Failed to complete enrollment. Please try again.'),
         ),
       );
     }
@@ -629,7 +630,7 @@ class FaceVerificationBloc
       emit(
         state.copyWith(
           status: FaceVerificationStatus.error,
-          errorMessage: 'Failed to start verification: ${e.toString()}',
+          errorMessage: ErrorMessages.from(e, fallback: 'Failed to start verification. Please try again.'),
         ),
       );
     }
@@ -767,7 +768,7 @@ class FaceVerificationBloc
         emit(
           state.copyWith(
             status: FaceVerificationStatus.verificationFailure,
-            errorMessage: 'Verification failed: ${e.toString()}',
+            errorMessage: ErrorMessages.from(e, fallback: 'Verification failed. Please try again.'),
           ),
         );
       } finally {
@@ -780,7 +781,7 @@ class FaceVerificationBloc
       emit(
         state.copyWith(
           status: FaceVerificationStatus.verificationFailure,
-          errorMessage: 'Verification failed: ${e.toString()}',
+          errorMessage: ErrorMessages.from(e, fallback: 'Verification failed. Please try again.'),
         ),
       );
       _isCapturing = false;

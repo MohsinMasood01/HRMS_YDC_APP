@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -31,7 +33,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       'password': password,
       'app_version': appVersion,
       'app_build': appBuild,
-      'platform': 'android',
+      'platform': Platform.isIOS ? 'ios' : 'android',
     };
 
     try {

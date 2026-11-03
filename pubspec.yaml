@@ -6,7 +6,7 @@ publish_to: 'none'
 #   50      → versionCode  (sent as app_build,   compared against MIN_BUILD)
 # Bump the +<n> on every release. Android refuses installs whose versionCode
 # isn't strictly greater than the installed build's.
-version: 1.6.0+60
+version: 1.6.6+66
 
 environment:
   # Bumped from ^3.9.2: `tracelet` 3.8.7 requires Dart ^3.10.3. Your installed
@@ -58,7 +58,7 @@ dependencies:
   flutter_pdfview: ^1.4.5
   share_plus: 10.1.4
   flutter_file_dialog: ^3.3.3
-  wakelock_plus: ^1.3.3
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -91,4 +91,11 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "lib/assets/images/YDC-HD2.png"
+  # YD mark centred on white (generated from lib/assets/images/YDC-HD2.png).
+  # Kept outside lib/assets/images so it isn't bundled into the app.
+  image_path: "assets/icon/app_icon.png"
+  # Android 8+ adaptive icon: mark kept inside the launcher's safe zone.
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  # The App Store rejects icons with an alpha channel.
+  remove_alpha_ios: true

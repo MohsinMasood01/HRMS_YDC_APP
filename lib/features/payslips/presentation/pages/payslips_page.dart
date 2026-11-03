@@ -10,6 +10,7 @@ import '../../domain/payslip_exception.dart';
 import '../cubit/payslips_cubit.dart';
 import '../payslip_session.dart';
 import 'payslip_detail_page.dart';
+import '../../../../core/widgets/responsive.dart';
 
 /// "My Payslips": every month HR has finalised for the signed-in employee,
 /// newest first, exactly as `GET /auth/payslips/:card_no` returns them.
@@ -31,7 +32,7 @@ class PayslipsPage extends StatelessWidget {
           backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           title: const Text('My Payslips'),
         ),
-        body: BlocConsumer<PayslipsCubit, PayslipsState>(
+        body: ResponsiveBody(child: BlocConsumer<PayslipsCubit, PayslipsState>(
           listenWhen: (previous, current) =>
               current.error?.kind == PayslipErrorKind.session &&
               previous.error?.kind != PayslipErrorKind.session,
@@ -79,7 +80,7 @@ class PayslipsPage extends StatelessWidget {
                 );
             }
           },
-        ),
+        )),
       ),
     );
   }

@@ -30,10 +30,33 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
         tools:node="remove"/>
 
-    <!-- In-app APK update: download from the backend and launch the system
-         installer. REQUEST_INSTALL_PACKAGES is mandatory on Android 8+
-         (API 26+) to open an .apk via the package installer. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (added by tracelet-sdk) is
+         restricted by Play to a few app types. The app instead opens the
+         battery-optimisation settings list
+         (Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, via
+         MainActivity), which needs no permission. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:node="remove"/>
+
+    <!-- REQUEST_INSTALL_PACKAGES is removed: Google Play rejects apps that
+         self-install APKs. Updates go through the Play Store listing instead
+         (ApkUpdater.openStore), so the backend's android update_url must be
+         the Play Store URL. Removed with tools:node in case a plugin adds it. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove"/>
+
+    <!-- Plugin-injected permissions this app never uses; Play restricts the
+         media ones to gallery-style apps:
+         - READ_MEDIA_*: added by open_filex; the app only opens its own files.
+         - RECORD_AUDIO: added by camera; capture uses enableAudio: false. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"
+        tools:node="remove"/>
 
     <application
         android:label="LMS"
@@ -83,12 +106,6 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
-        </intent>
-        <!-- open_filex: required on Android 11+ so OpenFilex.open() can
-             resolve a package installer that handles APK MIME. -->
-        <intent>
-            <action android:name="android.intent.action.VIEW"/>
-            <data android:mimeType="application/vnd.android.package-archive"/>
         </intent>
     </queries>
 </manifest>

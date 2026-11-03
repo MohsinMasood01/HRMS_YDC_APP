@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:tracelet/tracelet.dart' as tl;
 
 import 'location_tracking_config_service.dart';
@@ -255,8 +256,17 @@ class TraceletService {
   Future<Map<String, Object?>> batteryHealth() =>
       tl.Tracelet.getSettingsHealth();
 
+  static const MethodChannel _batteryChannel =
+      MethodChannel('com.yousufdewan.hrms/battery');
+
   /// Opens the manufacturer's power-management / autostart screen, falling
-  /// back to Android's battery-optimisation settings. True if a screen opened.
+  /// back to Android's battery-optimisation settings list. True if a screen
+  /// opened.
+  ///
+  /// Deliberately not `tl.Tracelet.openBatterySettings()`: that fires
+  /// ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, which needs the
+  /// REQUEST_IGNORE_BATTERY_OPTIMIZATIONS permission that Play restricts and
+  /// this app strips from its manifest. The settings list needs none.
   Future<bool> openBatterySettings() async {
     try {
       if (await tl.Tracelet.showPowerManager()) return true;
@@ -264,9 +274,16 @@ class TraceletService {
       debugPrint('[TraceletService] showPowerManager failed: $e');
     }
     try {
-      return await tl.Tracelet.openBatterySettings();
+      final opened = await _batteryChannel
+          .invokeMethod<bool>('openBatteryOptimizationSettings');
+      if (opened == true) return true;
     } catch (e) {
-      debugPrint('[TraceletService] openBatterySettings failed: $e');
+      debugPrint('[TraceletService] battery settings list failed: $e');
+    }
+    try {
+      return await tl.Tracelet.openAppSettings();
+    } catch (e) {
+      debugPrint('[TraceletService] openAppSettings failed: $e');
       return false;
     }
   }
@@ -369,10 +386,15 @@ class TraceletService {
   // Permissions
   // -----------------------------------------------------------------------
 
-  /// Location, then notification. Only ever called from a UI context (at
-  /// check-in) -- never during app bootstrap, where it would hang launch.
-  Future<void> requestPermissions() async {
-    await tl.Tracelet.requestLocationAuthorization();
+  /// Notification permission for the tracking notification. Only ever
+  /// called from a UI context (at check-in) -- never during app bootstrap,
+  /// where it would hang launch.
+  ///
+  /// Location is deliberately not requested here:
+  /// `Tracelet.requestLocationAuthorization()` escalates to "Allow all the
+  /// time", which must only follow the background-location disclosure shown
+  /// by BiometricAttendancePage.
+  Future<void> requestNotificationPermission() async {
     await tl.Tracelet.requestNotificationAuthorization();
   }
 }

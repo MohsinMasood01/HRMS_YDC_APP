@@ -444,7 +444,7 @@ class _EnhancedProfilePageState extends State<EnhancedProfilePage>
           children: [
             if (profile.fatherName != null && profile.fatherName!.isNotEmpty)
               _buildInfoRow(
-                'Father Name',
+                'Father / Husband Name',
                 profile.fatherName!,
                 Icons.family_restroom_outlined,
                 isDark,
@@ -2181,7 +2181,7 @@ class _EnhancedProfilePageState extends State<EnhancedProfilePage>
       return;
     }
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(

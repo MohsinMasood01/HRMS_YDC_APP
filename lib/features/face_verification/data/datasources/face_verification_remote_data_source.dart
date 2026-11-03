@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../domain/entities/face_embedding.dart';
+import '../../../../core/errors/error_messages.dart';
 
 /// Remote data source for face verification backend APIs
 ///
@@ -116,6 +117,12 @@ class FaceVerificationRemoteDataSourceImpl
       // Return true if successful, false if already registered
       return status.toLowerCase() == 'success' || alreadyRegistered;
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint(
         'FaceVerificationRemoteDataSource: Registration error - ${e.type}',
       );
@@ -149,7 +156,7 @@ class FaceVerificationRemoteDataSourceImpl
       // For other errors, rethrow
       throw Exception(
         e.response?.data?['message'] as String? ??
-            'Failed to register face: ${e.message}',
+            ErrorMessages.from(e, fallback: 'Could not register face. Please try again.'),
       );
     } catch (e) {
       debugPrint('FaceVerificationRemoteDataSource: Unexpected error: $e');
@@ -182,6 +189,12 @@ class FaceVerificationRemoteDataSourceImpl
 
       return FaceVerificationResponse.fromJson(body);
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint(
         'FaceVerificationRemoteDataSource: Verification error - ${e.type}',
       );
@@ -207,14 +220,14 @@ class FaceVerificationRemoteDataSourceImpl
         confidence: 0.0,
         message:
             e.response?.data?['message'] as String? ??
-            'Face verification failed: ${e.message}',
+            ErrorMessages.from(e, fallback: 'Face verification failed. Please try again.'),
       );
     } catch (e) {
       debugPrint('FaceVerificationRemoteDataSource: Unexpected error: $e');
       return FaceVerificationResponse(
         isMatch: false,
         confidence: 0.0,
-        message: 'Face verification failed: $e',
+        message: 'Face verification failed. Please try again.',
       );
     }
   }
@@ -242,6 +255,12 @@ class FaceVerificationRemoteDataSourceImpl
 
       return isRegistered;
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint(
         'FaceVerificationRemoteDataSource: Status check error - ${e.type}',
       );
@@ -275,6 +294,12 @@ class FaceVerificationRemoteDataSourceImpl
         'FaceVerificationRemoteDataSource: Face deleted successfully for employee: $employeeId',
       );
     } on DioException catch (e) {
+      // Offline / DNS / timeout: rethrow as-is so ErrorMessages can word it
+      // for the user; the technical detail stays in the log above.
+      if (ErrorMessages.isNetworkError(e)) {
+        debugPrint('Network error: $e');
+        rethrow;
+      }
       debugPrint('FaceVerificationRemoteDataSource: Delete error - ${e.type}');
       debugPrint(
         'FaceVerificationRemoteDataSource: Error message: ${e.message}',
@@ -294,7 +319,7 @@ class FaceVerificationRemoteDataSourceImpl
       // For other errors, rethrow
       throw Exception(
         e.response?.data?['message'] as String? ??
-            'Failed to delete face: ${e.message}',
+            ErrorMessages.from(e, fallback: 'Could not delete face. Please try again.'),
       );
     } catch (e) {
       debugPrint('FaceVerificationRemoteDataSource: Unexpected error: $e');

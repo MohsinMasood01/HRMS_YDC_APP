@@ -10,56 +10,123 @@ import 'package:shared_preferences/shared_preferences.dart';
 // kDebugMode, so this import and the code that uses it are tree-shaken out
 // of release builds twice over -- see the long-press handler on
 // _TodayStatusCard.
+// The lint wants it in `dependencies`; it must stay a dev_dependency so it is
+// never shipped, hence the ignore.
+// ignore: depend_on_referenced_packages
 import 'package:tracelet_doctor/tracelet_doctor.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/location_tracking_config_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/services/permission_service.dart';
+import '../../../../core/services/secure_storage_service.dart';
 import '../../../../core/services/tracelet_service.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../di/service_locator.dart';
 import '../bloc/biometric_attendance_bloc.dart';
+import '../../../../core/widgets/responsive.dart';
 
 class BiometricAttendancePage extends StatelessWidget {
   const BiometricAttendancePage({super.key});
 
-  /// Prompt at most once per app run so a missing grant is surfaced without
-  /// nagging on every check-in.
-  static bool _backgroundPromptShown = false;
+  /// Remembers the answer to the background-location disclosure:
+  /// `granted` (Continue, and "Allow all the time" was given), `accepted`
+  /// (Continue, but the permission was not granted) or `declined` (No thanks).
+  static const String _bgDisclosureKey = 'bg_location_disclosure_choice';
 
-  /// After a check-in that started tracking, verify the app can actually
-  /// capture location in the background.
+  /// Google Play's prominent disclosure for background location, shown
+  /// BEFORE the check-in that starts work-shift tracking -- never after it,
+  /// and before any background-location request.
   ///
-  /// While-in-use permission is enough to open the attendance screen but NOT
-  /// enough for scheduled capture once the app is minimised -- Android 11+
-  /// will not even prompt for the upgrade, so without this the tracking would
-  /// simply produce nothing and nobody would know why.
-  Future<void> _maybePromptBackgroundLocation(BuildContext context) async {
-    if (_backgroundPromptShown) return;
-
-    // Only relevant when HR actually has tracking switched on for this user.
-    final isTracking = await getIt<LocationTrackingService>().isTracking;
-    if (!isTracking) return;
-
+  /// Shown only where tracking may apply: HR has it enabled for [cardNo], or
+  /// that cannot be determined (identify mode, where the employee is only
+  /// known after the scan, or the settings endpoint is unreachable). The
+  /// answer is remembered so it is not asked on every check-in; it is asked
+  /// again only when a granted permission was later revoked.
+  ///
+  /// Never blocks the check-in: on "No thanks" tracking runs with whatever
+  /// permission the user has granted.
+  Future<void> _ensureBackgroundLocationDisclosure(
+    BuildContext context, {
+    String? cardNo,
+  }) async {
     final permissions = getIt<PermissionService>();
-    if (await permissions.isBackgroundLocationGranted()) return;
+    final prefs = await SharedPreferences.getInstance();
+    final choice = prefs.getString(_bgDisclosureKey);
 
-    final result = await permissions.requestBackgroundLocation();
-    if (result.isUsable) return;
+    if (await permissions.isBackgroundLocationGranted()) {
+      if (choice != 'granted') {
+        await prefs.setString(_bgDisclosureKey, 'granted');
+      }
+      return;
+    }
+    // Not granted: ask again only if it was granted before (since revoked).
+    if (choice != null && choice != 'granted') return;
 
-    _backgroundPromptShown = true;
+    if (cardNo != null && !await _mayBeTracked(cardNo)) return;
     if (!context.mounted) return;
 
+    final accepted = await PermissionService.showPermissionDialog(
+      context,
+      title: 'Location used during your work shift',
+      message:
+          'LMS collects location data to record your attendance location '
+          'during your work shift, from check-in until check-out, even when '
+          'the app is closed or not in use. A notification is shown the whole '
+          'time, and tracking stops when you check out. This data is sent '
+          'only to your employer\'s HR system.\n\n'
+          'On the next screen, choose "Allow all the time".',
+      settingsButtonText: 'Continue',
+      cancelButtonText: 'No thanks',
+    );
+    if (!accepted) {
+      await prefs.setString(_bgDisclosureKey, 'declined');
+      return;
+    }
+
+    final result = await permissions.requestBackgroundLocation();
+    await prefs.setString(
+      _bgDisclosureKey,
+      result.isUsable ? 'granted' : 'accepted',
+    );
+    if (result.isUsable) return;
+
+    if (!context.mounted) return;
+
+    // Android 11+ shows no "Allow all the time" dialog at all; the user has
+    // to switch it on in app settings.
     final openSettings = await PermissionService.showPermissionDialog(
       context,
       title: 'Allow location all the time',
       message:
-          'Your work session is being tracked. For it to keep recording while '
-          'the app is closed or your screen is locked, set location access to '
-          '"Allow all the time" in app settings.',
+          'For your work session to keep recording while the app is closed '
+          'or your screen is locked, set location access to "Allow all the '
+          'time" in app settings.',
       settingsButtonText: 'Open Settings',
       cancelButtonText: 'Not now',
     );
     if (openSettings) await permissions.openSettings();
+  }
+
+  /// Whether HR may have work-shift tracking on for [cardNo]. Unknown counts
+  /// as yes, so the disclosure is never skipped for a tracked employee.
+  Future<bool> _mayBeTracked(String cardNo) async {
+    try {
+      final config = await getIt<LocationTrackingConfigService>()
+          .getTrackingSettings(cardNo)
+          .timeout(const Duration(seconds: 8));
+      return config.isTrackingEnabled;
+    } catch (e) {
+      debugPrint('BiometricAttendancePage: tracking config unavailable: $e');
+      return true;
+    }
+  }
+
+  /// Card number of the signed-in employee, read the same way as the bloc.
+  Future<String?> _signedInCardNo() async {
+    final storage = getIt<SecureStorageService>();
+    final cardNo =
+        await storage.read('card_no1') ?? await storage.read('card_no');
+    return (cardNo == null || cardNo.isEmpty) ? null : cardNo;
   }
 
   static bool _batteryPromptShown = false;
@@ -131,7 +198,26 @@ class BiometricAttendancePage extends StatelessWidget {
       if (!context.mounted) return;
     }
 
+    if (type == 'check_in') {
+      final cardNo = await _signedInCardNo();
+      if (!context.mounted) return;
+      // Without a card number the bloc stops before any scan, so there is
+      // nothing to disclose yet.
+      if (cardNo != null) {
+        await _ensureBackgroundLocationDisclosure(context, cardNo: cardNo);
+      }
+    }
+
     bloc.add(BiometricAttendanceTypeChanged(type));
+    bloc.add(const BiometricAttendanceMarkRequested());
+  }
+
+  /// Identify mode (opened from the login page): the face scan reveals who is
+  /// marking, and the server decides check-in or check-out. The scan starts
+  /// only on this tap, never on screen open.
+  Future<void> _onIdentifyScan(BuildContext context) async {
+    final bloc = context.read<BiometricAttendanceBloc>();
+    await _ensureBackgroundLocationDisclosure(context);
     bloc.add(const BiometricAttendanceMarkRequested());
   }
 
@@ -483,7 +569,7 @@ class BiometricAttendancePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Biometric Attendance'), elevation: 0),
-      body: BlocConsumer<BiometricAttendanceBloc, BiometricAttendanceState>(
+      body: ResponsiveBody(child: BlocConsumer<BiometricAttendanceBloc, BiometricAttendanceState>(
         listenWhen: (previous, current) {
           // Only listen to status and message changes
           return previous.status != current.status ||
@@ -501,11 +587,12 @@ class BiometricAttendancePage extends StatelessWidget {
               markedAt: state.markedAt,
             );
             // The success dialog self-dismisses after 3s; wait for it so the
-            // permission guidance is not stacked on top of it.
+            // battery guidance is not stacked on top of it. (The background
+            // location disclosure comes BEFORE check-in -- see
+            // _ensureBackgroundLocationDisclosure.)
             Future.delayed(const Duration(milliseconds: 3200), () async {
               if (!context.mounted) return;
-              await _maybePromptBackgroundLocation(context);
-              if (context.mounted) await _maybePromptBatteryRestrictions(context);
+              await _maybePromptBatteryRestrictions(context);
             });
           } else if ((state.status == BiometricAttendanceStatus.error ||
                   state.status == BiometricAttendanceStatus.faceNotRegistered ||
@@ -525,6 +612,9 @@ class BiometricAttendancePage extends StatelessWidget {
               previous.isLocationServiceEnabled !=
                   current.isLocationServiceEnabled ||
               previous.locationInfo != current.locationInfo ||
+              previous.isLoadingLocation != current.isLoadingLocation ||
+              previous.isResolvingAddress != current.isResolvingAddress ||
+              previous.locationError != current.locationError ||
               previous.errorMessage != current.errorMessage;
         },
         builder: (context, state) {
@@ -634,7 +724,10 @@ class BiometricAttendancePage extends StatelessWidget {
                 else
                   _ActionButtons(
                     state: state,
+                    identifyMode:
+                        context.read<BiometricAttendanceBloc>().identifyMode,
                     onMarkAttendance: _onMarkAttendance,
+                    onIdentifyScan: _onIdentifyScan,
                     isDark: isDark,
                     theme: theme,
                   ),
@@ -681,7 +774,7 @@ class BiometricAttendancePage extends StatelessWidget {
             ),
           );
         },
-      ),
+      )),
     );
   }
 }
@@ -1087,6 +1180,17 @@ class _LocationInfoCard extends StatelessWidget {
                     isMultiline: true,
                   ),
                   SizedBox(height: 12.h),
+                ] else ...[
+                  // GPS works offline; the address needs the network.
+                  _LocationDetailItem(
+                    icon: Icons.home_rounded,
+                    label: 'Address',
+                    value: state.isResolvingAddress
+                        ? 'Looking up address...'
+                        : 'Address unavailable offline',
+                    isDark: isDark,
+                  ),
+                  SizedBox(height: 12.h),
                 ],
 
                 // Nearest Landmark
@@ -1324,13 +1428,17 @@ class _LocationServiceWarning extends StatelessWidget {
 class _ActionButtons extends StatelessWidget {
   const _ActionButtons({
     required this.state,
+    required this.identifyMode,
     required this.onMarkAttendance,
+    required this.onIdentifyScan,
     required this.isDark,
     required this.theme,
   });
 
   final BiometricAttendanceState state;
+  final bool identifyMode;
   final Function(BuildContext, String) onMarkAttendance;
+  final Function(BuildContext) onIdentifyScan;
   final bool isDark;
   final ThemeData theme;
 
@@ -1362,6 +1470,35 @@ class _ActionButtons extends StatelessWidget {
               );
             },
           ),
+        ),
+      );
+    }
+
+    if (identifyMode) {
+      // Who is marking is only known after the scan, so there is no today
+      // status to show -- one button, enabled until a mark succeeds (one
+      // person per visit) and again after a failure so it can be retried.
+      final canScan = isLocationEnabled &&
+          (state.status == BiometricAttendanceStatus.ready ||
+              state.status == BiometricAttendanceStatus.error ||
+              state.status == BiometricAttendanceStatus.faceVerificationFailed);
+      return ElevatedButton.icon(
+        onPressed: canScan
+            ? () => onIdentifyScan(context)
+            : (isLocationEnabled ? null : showLocationSnack),
+        icon: Icon(Icons.face_retouching_natural_rounded, size: 22.sp),
+        label: Text(
+          'Scan Face to Mark Attendance',
+          style: TextStyle(fontSize: 17.sp, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.symmetric(vertical: 18.h),
+          backgroundColor: canScan ? AppColors.success : Colors.grey.shade300,
+          foregroundColor: canScan ? Colors.white : Colors.grey.shade600,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+          elevation: canScan ? 4 : 0,
         ),
       );
     }

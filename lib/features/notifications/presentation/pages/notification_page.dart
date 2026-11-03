@@ -7,6 +7,7 @@ import '../../../../di/service_locator.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../domain/entities/notification_message.dart';
 import '../bloc/notification_bloc.dart';
+import '../../../../core/widgets/responsive.dart';
 
 /// Full-screen notification page (legacy - use NotificationDrawer instead)
 class NotificationPage extends StatelessWidget {
@@ -53,11 +54,11 @@ class NotificationPage extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocProvider(
+      body: ResponsiveBody(child: BlocProvider(
         create: (_) =>
             getIt<NotificationBloc>()..add(const NotificationsRequested()),
         child: const _NotificationContent(),
-      ),
+      )),
     );
   }
 }

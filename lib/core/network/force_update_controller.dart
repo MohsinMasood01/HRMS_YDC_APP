@@ -33,7 +33,7 @@ class ForceUpdateController extends ChangeNotifier {
     required String message,
     required String updateUrl,
   }) {
-    final url = updateUrl.trim().isEmpty ? kFallbackUpdateUrl : updateUrl;
+    final url = storeUpdateUrl(updateUrl);
     final changed = !_isLocked || _message != message || _updateUrl != url;
     _isLocked = true;
     _message = message;

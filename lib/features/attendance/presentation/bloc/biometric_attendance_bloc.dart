@@ -151,8 +151,8 @@ class BiometricAttendanceBloc
           add(const BiometricAttendanceLocationRequested());
         }
 
-        // Auto-trigger mark immediately in identify mode
-        add(const BiometricAttendanceMarkRequested());
+        // No auto-scan: frames are captured and sent to the face server only
+        // when the user taps the scan button (BiometricAttendancePage).
         return;
       }
 
@@ -243,7 +243,10 @@ class BiometricAttendanceBloc
       emit(
         state.copyWith(
           status: BiometricAttendanceStatus.error,
-          errorMessage: 'Failed to check face status: ${e.toString()}',
+          errorMessage: ErrorMessages.from(
+            e,
+            fallback: 'Could not check your face registration. Please try again.',
+          ),
         ),
       );
     }
@@ -310,27 +313,53 @@ class BiometricAttendanceBloc
     }
   }
 
-  /// Fetch current location with address and landmarks
+  /// Fetch current location, then its address and landmarks.
+  ///
+  /// The GPS fix needs no network, so the coordinates are shown as soon as it
+  /// arrives; the address (reverse geocoding, which does need the network) is
+  /// filled in afterwards. Both steps are bounded so the card never spins
+  /// indefinitely when offline.
   Future<void> _onLocationRequested(
     BiometricAttendanceLocationRequested event,
     Emitter<BiometricAttendanceState> emit,
   ) async {
-    emit(state.copyWith(isLoadingLocation: true));
+    emit(state.copyWith(isLoadingLocation: true, clearLocationError: true));
 
+    final LocationInfo coordinates;
     try {
-      final locationInfo = await _geocodingService.getLocationInfo();
-
-      emit(
-        state.copyWith(isLoadingLocation: false, locationInfo: locationInfo),
-      );
+      coordinates = await _geocodingService.currentCoordinates();
     } catch (e) {
+      debugPrint('BiometricAttendanceBloc: GPS fix failed: $e');
       emit(
         state.copyWith(
           isLoadingLocation: false,
-          locationError: 'Failed to get location: $e',
+          locationError: switch (e) {
+            TimeoutException() =>
+              'Could not get a GPS fix. Move to an open area and try again.',
+            LocationException(:final message) => message,
+            _ => 'Could not get your location. Please try again.',
+          },
         ),
       );
+      return;
     }
+
+    emit(
+      state.copyWith(
+        isLoadingLocation: false,
+        isResolvingAddress: true,
+        locationInfo: coordinates,
+      ),
+    );
+
+    // withAddress() swallows lookup failures itself; the timeout only guards
+    // against a lookup that never answers.
+    final withAddress = await _geocodingService
+        .withAddress(coordinates)
+        .timeout(const Duration(seconds: 15), onTimeout: () => coordinates);
+    emit(
+      state.copyWith(isResolvingAddress: false, locationInfo: withAddress),
+    );
   }
 
   /// Validate that the employee is within their attendance geofence.
@@ -563,7 +592,7 @@ class BiometricAttendanceBloc
         emit(
           state.copyWith(
             isLoadingLocation: false,
-            locationError: 'Location unavailable: $e',
+            locationError: ErrorMessages.from(e, fallback: 'Location unavailable.'),
           ),
         );
       }
@@ -594,7 +623,8 @@ class BiometricAttendanceBloc
       emit(
         state.copyWith(
           status: BiometricAttendanceStatus.error,
-          errorMessage: 'Failed to initialize camera: ${e.toString()}',
+          errorMessage:
+              'Could not open the camera. Close other apps using it and try again.',
         ),
       );
       return;
@@ -1107,7 +1137,10 @@ class BiometricAttendanceBloc
       emit(
         state.copyWith(
           status: BiometricAttendanceStatus.error,
-          errorMessage: 'Error saving attendance: ${e.toString()}',
+          errorMessage: ErrorMessages.from(
+            e,
+            fallback: 'Could not save your attendance. Please try again.',
+          ),
         ),
       );
     } finally {

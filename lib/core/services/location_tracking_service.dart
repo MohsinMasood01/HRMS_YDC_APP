@@ -294,12 +294,17 @@ class LocationTrackingService {
         cutoffAt: backendCutoff ?? resumable?.cutoffAt,
       );
 
-      // Ask for location/notification permission HERE, not at startup: this
-      // runs from a real UI context after a successful check-in. Requesting
-      // it during app bootstrap (before runApp) hangs launch on a white
-      // screen. A denial must not stop the session from being recorded.
+      // Ask for notification permission HERE, not at startup: this runs from
+      // a real UI context after a successful check-in. Requesting it during
+      // app bootstrap (before runApp) hangs launch on a white screen. A
+      // denial must not stop the session from being recorded.
+      //
+      // Location is NOT requested here: background location may only be
+      // asked for after the Play prominent disclosure, which the attendance
+      // screen shows before check-in. Tracking runs with whatever location
+      // permission the user granted there.
       try {
-        await _tracelet.requestPermissions();
+        await _tracelet.requestNotificationPermission();
       } catch (e) {
         debugPrint('[LocationTracking] Permission request failed: $e');
       }

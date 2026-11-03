@@ -12,16 +12,42 @@ import 'presentation/splash/splash_page.dart';
 import 'presentation/update/update_gate.dart';
 import 'shared/bloc/app_bloc.dart';
 
+const Size kDesignSize = Size(390, 844);
+
+/// Largest factor ScreenUtil may scale the phone design by.
+const double _kMaxDesignScale = 1.2;
+
+/// ScreenUtil scales every .w/.h/.sp against the 390x844 phone design, which
+/// blows tablets up ~3x. ScreenUtilInit has already configured itself from the
+/// real window by the time its builder runs, so re-configure it here against
+/// a capped size: large screens keep phone-proportioned elements and the
+/// extra room goes to the responsive layouts (see core/widgets/responsive.dart).
+/// Phones (up to 468 x 1013 logical px) are unaffected.
+void capScaleOnLargeScreens(BuildContext context) {
+  final view = View.maybeOf(context);
+  if (view == null) return;
+  final data = MediaQueryData.fromView(view);
+  final size = data.size;
+  final capped = Size(
+    size.width.clamp(0, kDesignSize.width * _kMaxDesignScale).toDouble(),
+    size.height.clamp(0, kDesignSize.height * _kMaxDesignScale).toDouble(),
+  );
+  if (capped != size) {
+    ScreenUtil.configure(data: data.copyWith(size: capped));
+  }
+}
+
 class LmsApp extends StatelessWidget {
   const LmsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
-      designSize: const Size(390, 844),
+      designSize: kDesignSize,
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
+        capScaleOnLargeScreens(context);
         return MultiBlocProvider(
           providers: [
             BlocProvider<AppBloc>(create: (_) => getIt<AppBloc>()..loadTheme()),
